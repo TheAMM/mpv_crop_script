@@ -1,0 +1,12 @@
+{
+	"output" : "cropped_screenshot.lua",
+	"files" : [
+		"src/helpers.lua",
+		"src/options.lua",
+		"src/display_state.lua",
+		"src/asscropper.lua",
+		"src/main.lua"
+	],
+	"header_prefix" : "--[ ",
+	"header_suffix" : " ]--"
+}
