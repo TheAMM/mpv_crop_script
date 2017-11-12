@@ -104,4 +104,10 @@ display_state = DisplayState()
 asscropper = ASSCropper(display_state)
 
 mp.register_event("tick", on_tick_listener)
-mp.add_key_binding(SCRIPT_KEYBIND, SCRIPT_HANDLER, script_crop_toggle)
+
+local used_keybind = SCRIPT_KEYBIND
+-- Disable the default keybind if asked to
+if script_options.disable_keybind then
+  used_keybind = nil
+end
+mp.add_key_binding(used_keybind, SCRIPT_HANDLER, script_crop_toggle)

@@ -17,9 +17,10 @@ local script_options = {
     -- %u - Unique - "", "_1", "_2", ...
     -- %U - Unique - "", " 1", " 2", ...
     -- %p - Current time - 00.03.50.423
-    -- %P - Current time with decimals - 00.03.50
+    -- %P - Current time without decimals - 00.03.50
     -- %D - Crop size - 200x300, 123x450, full
-    keep_original   = false
+    keep_original   = false,
+    disable_keybind = false
 }
 
 -- Read user-given options, if any
