@@ -1,5 +1,5 @@
 {
-	"output" : "cropped_screenshot.lua",
+	"output" : "mpv_crop_script.lua",
 	"files" : [
 		"src/helpers.lua",
 		"src/options.lua",
