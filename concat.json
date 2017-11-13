@@ -1,6 +1,7 @@
 {
 	"output" : "mpv_crop_script.lua",
 	"files" : [
+		"src/license_blurb.lua",
 		"src/helpers.lua",
 		"src/options.lua",
 		"src/display_state.lua",
