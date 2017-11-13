@@ -279,14 +279,19 @@ function ASSCropper:on_mouse(button, mouse_down, shift_down)
 
     if mouse_down then -- Mouse pressed
 
+      local bound_mouse_pos = {
+        x = math.max(0, math.min(self.display_state.video.width, mouse_pos.x)),
+        y = math.max(0, math.min(self.display_state.video.height, mouse_pos.y)),
+      }
+
       if self.current_crop == nil then
-        self.current_crop = { mouse_pos, mouse_pos }
+        self.current_crop = { bound_mouse_pos, bound_mouse_pos }
 
         self.dragging = 3
-        self.anchor_pos = {mouse_pos.x, mouse_pos.y}
+        self.anchor_pos = {bound_mouse_pos.x, bound_mouse_pos.y}
 
         self.crop_ratio = 1
-        self.drag_start = mouse_pos
+        self.drag_start = bound_mouse_pos
 
         local handle_pos = self:_get_anchor_positions()[hit]
         self.drag_offset = {0, 0}
@@ -311,21 +316,22 @@ function ASSCropper:on_mouse(button, mouse_down, shift_down)
 
         -- Start a new drag if not on handle
         if self.dragging == 0 then
-          self.current_crop = { mouse_pos, mouse_pos }
+          self.current_crop = { bound_mouse_pos, bound_mouse_pos }
           self.crop_ratio = 1
 
           self.dragging = 3
-          self.anchor_pos = {mouse_pos.x, mouse_pos.y}
+          self.anchor_pos = {bound_mouse_pos.x, bound_mouse_pos.y}
           -- self.drag_start = mouse_pos
         end
       end
 
-    else         -- Mouse released
+    else -- Mouse released
 
       if xy_same(self.current_crop[1], self.current_crop[2]) and xy_distance(self.current_crop[1], mouse_pos) < 5 then
         -- Mouse released after first click - ignore
 
       elseif self.dragging > 0 then
+        -- Adjust current crop
         self.current_crop = self:offset_crop_by_drag()
         self.dragging = 0
       end
