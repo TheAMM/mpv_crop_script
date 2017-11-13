@@ -7,7 +7,7 @@
 
 ## What is it?
 
-`mpv_crop_script.lua` is a script for making cropped screenshots from within [mpv](https://github.com/mpv-player/mpv), without any external dependencies[^deps], cross-platform-ly[^crossplat]!
+`mpv_crop_script.lua` is a script for making cropped screenshots from within [mpv](https://github.com/mpv-player/mpv), without any external dependencies[<sup>1</sup>](#footnotes), cross-platform-ly[<sup>2</sup>](#footnotes)!
 
 ## How?
 
@@ -80,5 +80,7 @@ You may also, of course, just `cat` the files together yourself. See the [`conca
 
 If you *really* get a kick out of this (weirdo), you can [paypal me](https://www.paypal.me/TheAMM) or send bitcoins to `1K9FH7J3YuC9EnQjjDZJtM4EFUudHQr52d`. Just having the option there, is all.
 
-[^deps]: You *may* need to add `mpv[.exe]` to your `PATH`.
-[^crossplat]: Developed & tested on Windows and Linux (Ubuntu), but it *should* work on Mac and whatnot as well, if <sup>1</sup> has been taken care of.
+#### Footnotes
+<sup>1</sup>You *may* need to add `mpv[.exe]` to your `PATH`.
+
+<sup>2</sup>Developed & tested on Windows and Linux (Ubuntu), but it *should* work on Mac and whatnot as well, if <sup>1</sup> has been taken care of.
