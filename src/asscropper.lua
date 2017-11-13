@@ -14,9 +14,16 @@ function ASSCropper.new(display_state)
   self.corner_size = 40
   self.corner_required_size = self.corner_size * 3
 
+  self.guide_type_names = {
+    [0] = "No guides",
+    [1] = "Grid guides",
+    [2] = "Center guides"
+  }
+  self.guide_type_count = 3
+
   self.default_options = {
     even_dimensions = false,
-    draw_guides = false,
+    guide_type = 0,
     draw_mouse = false,
     draw_help = true,
     color_invert = false,
@@ -28,6 +35,7 @@ function ASSCropper.new(display_state)
   self.mouse_screen = {x=0, y=0}
   self.mouse_video  = {x=0, y=0}
 
+  -- Crop in video-space
   self.current_crop = nil
 
   self.dragging = 0
@@ -99,7 +107,8 @@ function ASSCropper:key_event(name)
   elseif name == "INVERT" then
     self.options.color_invert = not self.options.color_invert;
   elseif name == "GUIDES" then
-    self.options.draw_guides = not self.options.draw_guides;
+    self.options.guide_type = (self.options.guide_type + 1) % (self.guide_type_count)
+    mp.osd_message(self.guide_type_names[self.options.guide_type])
   end
 end
 
@@ -365,6 +374,7 @@ end
 
 
 function ASSCropper:offset_crop_by_drag()
+  -- Here be dragons lol
   local vw, vh = self.display_state.video.width, self.display_state.video.height
   local mx, my = self.mouse_video.x, self.mouse_video.y
 
@@ -673,26 +683,42 @@ function ASSCropper:get_render_ass(dim_only)
     ass:draw_stop()
 
     -- Guide grid, 3x3
-    if self.options.draw_guides then
-      local w_3rd =  ( (s_crop[3] - s_crop[1]) / 3 )
-      local h_3rd =  ( (s_crop[4] - s_crop[2]) / 3 )
+    if self.options.guide_type then
       ass:new_event()
       ass:pos(0,0)
       ass:append( guide_format )
       ass:draw_start()
 
-      ass:move_to(s_crop[1] + w_3rd, s_crop[2])
-      ass:line_to(s_crop[1] + w_3rd, s_crop[4])
+      local w = (s_crop[3] - s_crop[1])
+      local h = (s_crop[4] - s_crop[2])
 
-      ass:move_to(s_crop[1] + w_3rd*2, s_crop[2])
-      ass:line_to(s_crop[1] + w_3rd*2, s_crop[4])
+      local w_3rd = w / 3
+      local h_3rd = h / 3
+      local w_2 = w / 2
+      local h_2 = h / 2
+      if self.options.guide_type == 1 then
+        -- 3x3 grid
+        ass:move_to(s_crop[1] + w_3rd, s_crop[2])
+        ass:line_to(s_crop[1] + w_3rd, s_crop[4])
 
-      ass:move_to(s_crop[1], s_crop[2] + h_3rd)
-      ass:line_to(s_crop[3], s_crop[2] + h_3rd)
+        ass:move_to(s_crop[1] + w_3rd*2, s_crop[2])
+        ass:line_to(s_crop[1] + w_3rd*2, s_crop[4])
 
-      ass:move_to(s_crop[1], s_crop[2] + h_3rd*2)
-      ass:line_to(s_crop[3], s_crop[2] + h_3rd*2)
+        ass:move_to(s_crop[1], s_crop[2] + h_3rd)
+        ass:line_to(s_crop[3], s_crop[2] + h_3rd)
 
+        ass:move_to(s_crop[1], s_crop[2] + h_3rd*2)
+        ass:line_to(s_crop[3], s_crop[2] + h_3rd*2)
+
+      elseif self.options.guide_type == 2 then
+        -- Top to bottom
+        ass:move_to(s_crop[1] + w_2, s_crop[2])
+        ass:line_to(s_crop[1] + w_2, s_crop[4])
+
+        -- Left to right
+        ass:move_to(s_crop[1], s_crop[2] + h_2)
+        ass:line_to(s_crop[3], s_crop[2] + h_2)
+      end
       ass:draw_stop()
     end
 
@@ -785,10 +811,9 @@ function ASSCropper:get_render_ass(dim_only)
     local fmt_key = function( key, text ) return string.format("[{\\c&HBEBEBE&}%s{\\c} %s]", key:upper(), text) end
 
     local crosshair_txt = self.options.draw_mouse and "Hide" or "Show";
-    local guide_txt = self.options.draw_guides and "Hide" or "Show";
     lines = {
       fmt_key("ENTER", "Accept crop") .. " " .. fmt_key("ESC", "Cancel crop"),
-      fmt_key("C", crosshair_txt .. " crosshair") .. " " .. fmt_key("X", guide_txt .. " guides") .. " " .. fmt_key("Z", "Invert color"),
+      fmt_key("C", crosshair_txt .. " crosshair") .. " " .. fmt_key("X", "Cycle guides") .. " " .. fmt_key("Z", "Invert color"),
       fmt_key("SHIFT-Drag", "Constrain ratio")
     }
 
