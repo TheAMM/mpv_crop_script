@@ -7,7 +7,8 @@ import binascii
 
 import argparse
 import hashlib
-import difflib
+import subprocess
+import datetime
 
 
 parser = argparse.ArgumentParser(description="Concatenate files to a target file, optionally writing target-changes back to source files")
@@ -78,6 +79,8 @@ class Concatter(object):
         self.section_header_suffix = config.get('header_suffix', '')
         self.working_directory = working_directory
 
+        self.version_metafile = None
+
         self.newline = None
 
         self.section_header_format = self.section_header_prefix + self.SECTION_HEADER_FORMAT_BASE + self.section_header_suffix
@@ -125,20 +128,24 @@ class Concatter(object):
         file_sections = []
 
         for filename in self.file_list:
-            file_path = os.path.join(self.working_directory, filename)
-            if not os.path.exists(file_path):
-                raise Exception("File '{}' is missing!".format(file_path))
+            # The version metafile
+            if filename == '<version>':
+                file_section = self.version_metafile
+            else:
+                file_path = os.path.join(self.working_directory, filename)
+                if not os.path.exists(file_path):
+                    raise Exception("File '{}' is missing!".format(file_path))
 
-            file_section = FileSection.from_file(file_path)
-            file_section.filename = filename
+                file_section = FileSection.from_file(file_path)
+                file_section.filename = filename
 
-            # Figure out newline to be used
-            if self.newline is None:
-                self.newline = '\r\n' if '\r\n' in file_section.content else '\n'
+                # Figure out newline to be used
+                if self.newline is None:
+                    self.newline = '\r\n' if '\r\n' in file_section.content else '\n'
 
-            if not file_section.content.endswith(self.newline):
-                file_section.content += self.newline
-                file_section.recalculate_hash()
+                if not file_section.content.endswith(self.newline):
+                    file_section.content += self.newline
+                    file_section.recalculate_hash()
 
             file_sections.append(file_section)
         return file_sections
@@ -159,6 +166,9 @@ class Concatter(object):
 
     def write_file_sections_back(self, file_sections):
         for file_section in file_sections:
+            # Skip version metafile
+            if file_section is self.version_metafile: continue
+
             file_path = os.path.join(self.working_directory, file_section.filename)
 
             # Backup target file if it exists
@@ -180,6 +190,8 @@ class Concatter(object):
         target_to_source = []
 
         for source_section in source_sections:
+            if source_section is self.version_metafile: continue
+
             target_section = target_map.get(source_section.filename)
 
             if not target_section:
@@ -234,6 +246,52 @@ class Concatter(object):
         self.concatenate_file_sections(source_sections, False)
 
 
+def _create_version_metafile(config, config_dirname):
+    repo_dir = os.path.join(config_dirname, config.get('repo_dir', ''))
+    try:
+        git_branch = subprocess.check_output(['git', '-C', repo_dir, 'symbolic-ref', '--short', '-q', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
+        git_commit = subprocess.check_output(['git', '-C', repo_dir, 'rev-parse', '--short', '-q', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
+    except:
+        git_branch = None
+        git_commit = None
+
+    if not git_branch:
+        git_branch = 'unknown'
+
+    if git_commit:
+        git_commit_short = git_commit[:7]
+    else:
+        git_commit = git_commit_short = 'unknown'
+
+    project_version_file = config.get('version_file')
+    if project_version_file:
+        with open(project_version_file, 'r') as in_file:
+            project_version = in_file.read().strip()
+    else:
+        project_version = 'unknown'
+
+    template_data = {
+        'version' : project_version,
+
+        'branch' : git_branch,
+        'commit' : git_commit,
+        'commit_short' : git_commit_short,
+
+        'now' : datetime.datetime.now(),
+        'utc_now' : datetime.datetime.utcnow(),
+    }
+
+    version_template_file = config.get('version_template_file')
+    if version_template_file:
+        with open(os.path.join(config_dirname, version_template_file), 'r') as in_file:
+            version_template = in_file.read()
+    else:
+        version_template = ''
+
+    version_metafile = FileSection('<version>', version_template.format(**template_data), 0)
+    return version_metafile
+
+
 def _print_change_writes(source_to_target, target_to_source):
     if source_to_target:
         print('SOURCE -> TARGET')
@@ -267,6 +325,7 @@ if __name__ == '__main__':
         config['output'] = os.path.join(config_dirname, config['output'])
 
     concatter = Concatter(config, config_dirname)
+    concatter.version_metafile = _create_version_metafile(config, config_dirname)
 
     if not concatter.file_list:
         print('No files listed in configuration!')
