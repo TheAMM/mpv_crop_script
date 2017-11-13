@@ -1,13 +1,19 @@
 {
 	"output" : "mpv_crop_script.lua",
+
 	"files" : [
 		"src/license_blurb.lua",
+		"<version>",
 		"src/helpers.lua",
 		"src/options.lua",
 		"src/display_state.lua",
 		"src/asscropper.lua",
 		"src/main.lua"
 	],
+
+	"version_file" : "version.txt",
+	"version_template_file" : "src/version.tmpl.lua",
+
 	"header_prefix" : "--[ ",
 	"header_suffix" : " ]--"
 }
