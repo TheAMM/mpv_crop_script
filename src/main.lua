@@ -46,6 +46,7 @@ function get_output_path(size)
     return output_path, output_path_full
 end
 
+
 function script_crop_toggle()
   if asscropper.active then
     asscropper:stop_crop(true)
@@ -66,14 +67,22 @@ function script_crop_toggle()
   end
 end
 
+
 function on_tick_listener()
   if asscropper.active and display_state:recalculate_bounds() then
     mp.set_osd_ass(display_state.screen.width, display_state.screen.height, asscropper:get_render_ass())
   end
 end
 
+
 function screenshot(crop)
   local size = round_dec(crop.w) .. "x" .. round_dec(crop.h)
+
+  -- Bail on bad crop sizes
+  if not (crop.w > 0 and crop.h > 0) then
+    mp.osd_message("Bad crop (" .. size .. ")!")
+    return
+  end
 
   local output_path, fullsize_output_path = get_output_path(size)
   local out = mp.commandv("no-osd", "screenshot-to-file", fullsize_output_path)
