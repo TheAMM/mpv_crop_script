@@ -18,7 +18,8 @@ function ASSCropper.new(display_state)
     even_dimensions = false,
     draw_guides = false,
     draw_mouse = false,
-    draw_help = true
+    draw_help = true,
+    color_invert = false,
   }
   self.options = default_options
 
@@ -39,6 +40,7 @@ function ASSCropper.new(display_state)
     {"shift+mouse_btn0", function(e) self:on_mouse("mouse_btn0", false, true) end, function(e) self:on_mouse("mouse_btn0", true, true) end},
     {"c", function() self:key_event("CROSSHAIR") end },
     {"x", function() self:key_event("GUIDES") end },
+    {"z", function() self:key_event("INVERT") end },
     {"ENTER", function() self:key_event("ENTER") end },
     {"ESC", function() self:key_event("ESC") end }
   }
@@ -94,6 +96,8 @@ function ASSCropper:key_event(name)
 
   elseif name == "CROSSHAIR" then
     self.options.draw_mouse = not self.options.draw_mouse;
+  elseif name == "INVERT" then
+    self.options.color_invert = not self.options.color_invert;
   elseif name == "GUIDES" then
     self.options.draw_guides = not self.options.draw_guides;
   end
@@ -608,7 +612,8 @@ function ASSCropper:get_render_ass(dim_only)
     return ""
   end
 
-  local dasldkjasjlda = string.format("{\\3a&HFF&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 128, 180, 180, 180)
+  line_color = self.options.color_invert and 20 or 220
+  local guide_format = string.format("{\\3a&HFF&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 128, line_color, line_color, line_color)
 
   ass = assdraw.ass_new()
   if self.current_crop then
@@ -655,14 +660,14 @@ function ASSCropper:get_render_ass(dim_only)
     end
 
 
-    local fmt_string = string.format("{\\1a&HFF&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 0, 180, 180, 180)
-    local fmt_handle_hover = string.format("{\\1a&H%02X&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord0}", 230, 0, 180, 180, 180)
-    local fmt_drag = string.format("{\\1a&H%02X&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 200, 0, 180, 180, 180)
+    local box_format = string.format("{\\1a&HFF&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 0, line_color, line_color, line_color)
+    local handle_hilight_format = string.format("{\\1a&H%02X&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord0}", 230, 0, line_color, line_color, line_color)
+    local handle_drag_format = string.format("{\\1a&H%02X&\\3a&H%02X&\\3c&H%02X%02X%02X&\\bord1}", 200, 0, line_color, line_color, line_color)
 
     -- Main crop box
     ass:new_event()
     ass:pos(0,0)
-    ass:append( fmt_string )
+    ass:append( box_format )
     ass:draw_start()
     ass:rect_cw(s_crop[1], s_crop[2], s_crop[3], s_crop[4])
     ass:draw_stop()
@@ -673,7 +678,7 @@ function ASSCropper:get_render_ass(dim_only)
       local h_3rd =  ( (s_crop[4] - s_crop[2]) / 3 )
       ass:new_event()
       ass:pos(0,0)
-      ass:append( dasldkjasjlda )
+      ass:append( guide_format )
       ass:draw_start()
 
       ass:move_to(s_crop[1] + w_3rd, s_crop[2])
@@ -694,7 +699,7 @@ function ASSCropper:get_render_ass(dim_only)
     if self.dragging > 0 and drawn_handle ~= 5 then
       -- While dragging, draw only the dragging handle
       ass:new_event()
-      ass:append( fmt_drag )
+      ass:append( handle_drag_format )
       ass:pos(0,0)
       ass:draw_start()
       ass:rect_cw(s_hb[drawn_handle][1], s_hb[drawn_handle][2], s_hb[drawn_handle][3], s_hb[drawn_handle][4])
@@ -704,7 +709,7 @@ function ASSCropper:get_render_ass(dim_only)
       if hit_index > 0 and hit_index ~= 5 then
         -- Hilight handle
         ass:new_event()
-        ass:append( fmt_handle_hover )
+        ass:append( handle_hilight_format )
         ass:pos(0,0)
         ass:draw_start()
         ass:rect_cw(s_hb[hit_index][1], s_hb[hit_index][2], s_hb[hit_index][3], s_hb[hit_index][4])
@@ -713,7 +718,7 @@ function ASSCropper:get_render_ass(dim_only)
 
       ass:new_event()
       ass:pos(0,0)
-      ass:append( fmt_string )
+      ass:append( box_format )
       ass:draw_start()
 
       -- Draw corner handles
@@ -759,7 +764,7 @@ function ASSCropper:get_render_ass(dim_only)
   if self.options.draw_mouse and not dim_only then
     ass:new_event()
     ass:pos(0,0)
-    ass:append( dasldkjasjlda )
+    ass:append( guide_format )
     ass:draw_start()
 
     ass:move_to(self.mouse_screen.x, 0)
@@ -783,7 +788,7 @@ function ASSCropper:get_render_ass(dim_only)
     local guide_txt = self.options.draw_guides and "Hide" or "Show";
     lines = {
       fmt_key("ENTER", "Accept crop") .. " " .. fmt_key("ESC", "Cancel crop"),
-      fmt_key("C", crosshair_txt .. " crosshair") .. " " .. fmt_key("X", guide_txt .. " guides"),
+      fmt_key("C", crosshair_txt .. " crosshair") .. " " .. fmt_key("X", guide_txt .. " guides") .. " " .. fmt_key("Z", "Invert color"),
       fmt_key("SHIFT-Drag", "Constrain ratio")
     }
 
