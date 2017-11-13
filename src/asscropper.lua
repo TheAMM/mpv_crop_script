@@ -168,7 +168,11 @@ function ASSCropper:get_hitboxes(crop_box)
   local y1, y2 = order_pair(crop_box[1].y, crop_box[2].y)
   local w, h = math.abs(x2 - x1), math.abs(y2 - y1)
 
-  local handles_outside = (math.min(w, h) <= self.corner_required_size)
+  -- Corner and required corner size in videospace pixels
+  local videospace_corner_size = self.corner_size * self.display_state.scale_mult
+  local videospace_required_size = self.corner_required_size * self.display_state.scale_mult
+
+  local handles_outside = (math.min(w, h) <= videospace_required_size)
 
   local hitbox_bases = {
     { x1, y2, x1, y2 }, -- BL
@@ -216,15 +220,16 @@ function ASSCropper:get_hitboxes(crop_box)
     }
   end
 
+
   local hitboxes = {}
   for index, hitbox_base in ipairs(hitbox_bases) do
     local hitbox_mult = hitbox_mults[index]
 
     hitboxes[index] = {
-      hitbox_base[1] + hitbox_mult[1] * self.corner_size,
-      hitbox_base[2] + hitbox_mult[2] * self.corner_size,
-      hitbox_base[3] + hitbox_mult[3] * self.corner_size,
-      hitbox_base[4] + hitbox_mult[4] * self.corner_size
+      hitbox_base[1] + hitbox_mult[1] * videospace_corner_size,
+      hitbox_base[2] + hitbox_mult[2] * videospace_corner_size,
+      hitbox_base[3] + hitbox_mult[3] * videospace_corner_size,
+      hitbox_base[4] + hitbox_mult[4] * videospace_corner_size
     }
   end
   -- Pseudobox to easily pass the original crop box
