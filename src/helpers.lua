@@ -7,7 +7,7 @@ local utils = require 'mp.utils'
 ON_WINDOWS = (package.config:sub(1,1) ~= '/')
 
 -- Some helper functions needed to parse the options --
-function isempty(v) return (v == nil) or (v == "") or (type(v) == "table" and next(v) == nil) end
+function isempty(v) return (v == false) or (v == nil) or (v == "") or (v == 0) or (type(v) == "table" and next(v) == nil) end
 
 function divmod (a, b)
   return math.floor(a / b), a % b
@@ -20,19 +20,28 @@ end
 
 function join_paths(...)
   local sep = ON_WINDOWS and "\\" or "/"
-  local result = nil;
+  local result = "";
   for i, p in pairs({...}) do
-    result = result and (result:gsub("[\\"..sep.."]$", "") .. sep .. p) or p
+    if p ~= "" then
+      result = (result ~= "") and (result:gsub("[\\"..sep.."]$", "") .. sep .. p) or p
+    end
   end
   return result
 end
 
+-- /some/path/file.ext -> /some/path, file.ext
 function split_path( path )
   local sep = ON_WINDOWS and "\\" or "/"
-  local dir = string.gsub(path, "^(.+"..sep..")(.*)", "%1")
-  local file = string.gsub(path, "^(.+"..sep..")(.*)", "%2")
+  local first_index, last_index = path:find('^.*' .. sep)
 
-  return dir, file
+  if last_index == nil then
+    return "", path
+  else
+    local dir = path:sub(0, last_index-1)
+    local file = path:sub(last_index+1, -1)
+
+    return dir, file
+  end
 end
 
 function is_local_path( path )
@@ -90,6 +99,16 @@ function path_exists(name)
   else
     return false
   end
+end
+
+function create_directories(path)
+  local cmd
+  if ON_WINDOWS then
+    cmd = { args = {"cmd", "/c", "mkdir", path} }
+  else
+    cmd = { args = {"mkdir", "-p", path} }
+  end
+  utils.subprocess(cmd)
 end
 
 -- Find an executable in PATH or CWD with the given name
