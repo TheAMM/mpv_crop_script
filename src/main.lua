@@ -1,52 +1,3 @@
-function get_output_path(size)
-    local filename = mp.get_property_native("filename")
-    local playback_time = mp.get_property_native("playback-time")
-
-    local substitution_data = {
-      f = filename:match("^(.+)%..+$"),    -- Filename without extension
-      X = filename:gsub("^(.+)%..+$", ""), -- Original extension
-
-      D = size,
-      p = format_time(playback_time, nil, 0),
-      P = format_time(playback_time),
-
-      x = script_options.output_format, -- Output extension
-    }
-
-    local output_path = nil
-    local output_path_full = nil
-
-    -- Figure out an unique filename
-    local unique = 0
-    while true do
-      if unique == 0 then
-        substitution_data.u = ""
-        substitution_data.U = ""
-      else
-        substitution_data.u = "_" .. tostring(unique)
-        substitution_data.U = " " .. tostring(unique)
-      end
-
-      -- Test if unique value is unique
-      local test_path = substitute_values(script_options.output_template, substitution_data)
-      -- test_path = test_path:gsub('[<>:"/\\|?*]', '') -- Safe filename
-      local test_path = join_paths( output_directory, test_path )
-
-      -- Check for existing files
-      if not path_exists(test_path) then
-        output_path = test_path
-        substitution_data.D = "full"
-        output_path_full = substitute_values(script_options.output_template, substitution_data)
-        break -- Success!
-      else
-        unique = unique + 1 -- Try next one
-      end
-    end
-
-    return output_path, output_path_full
-end
-
-
 function script_crop_toggle()
   if asscropper.active then
     asscropper:stop_crop(true)
@@ -75,6 +26,62 @@ function on_tick_listener()
 end
 
 
+function expand_output_path(cropbox)
+    local filename = mp.get_property_native("filename")
+    local playback_time = mp.get_property_native("playback-time")
+
+    local properties = {
+      path = mp.get_property_native("path"), -- Original path
+
+      filename = filename:match("^(.+)%..+$"), -- Filename without extension
+      file_ext = filename:gsub("^(.+)%..+$", ""), -- Original extension with leading dot
+
+      pos = mp.get_property_native("playback-time"),
+
+      full = false,
+
+      crop_w = cropbox.w,
+      crop_h = cropbox.h,
+      crop_x = cropbox.x,
+      crop_y = cropbox.y,
+      crop_x2 = cropbox.x2,
+      crop_y2 = cropbox.y2,
+
+      unique = 0,
+
+      ext = script_options.output_format
+    }
+    local propex = PropertyExpander(MPVPropertySource(properties))
+
+
+    local test_path = propex:expand(script_options.output_template)
+    -- If the paths do not change when incrementing the unique, it's not used.
+    -- Return early and avoid the endless loop
+    properties.unique = 1
+    if propex:expand(script_options.output_template) == test_path then
+      properties.full = true
+      local output_path_full = propex:expand(script_options.output_template)
+      return test_path, output_path_full
+
+    else
+      -- Figure out an unique filename
+      while true do
+        test_path = propex:expand(script_options.output_template)
+
+        -- Check if filename is free
+        if not path_exists(test_path) then
+          properties.full = true
+          local output_path_full = propex:expand(script_options.output_template)
+          return test_path, output_path_full
+        else
+          -- Try the next one
+          properties.unique = properties.unique + 1
+        end
+      end
+    end
+end
+
+
 function screenshot(crop)
   local size = round_dec(crop.w) .. "x" .. round_dec(crop.h)
 
@@ -84,25 +91,67 @@ function screenshot(crop)
     return
   end
 
-  local output_path, fullsize_output_path = get_output_path(size)
-  local out = mp.commandv("no-osd", "screenshot-to-file", fullsize_output_path)
+  local output_path, output_path_full = expand_output_path(crop)
 
-  local crop_string = string.format("%d:%d:%d:%d", round_dec(crop.w), round_dec(crop.h), round_dec(crop.x), round_dec(crop.y))
+  -- Optionally create directories
+  if script_options.create_directories then
+    local paths = {}
+    paths[1] = split_path(output_path)
+    paths[2] = split_path(output_path_full)
+
+    -- Check if we can read the paths
+    for i, path in ipairs(paths) do
+      local l, err = utils.readdir(path)
+      if err then
+        create_directories(path)
+      end
+    end
+  end
+
+  -- In case the full-size output path is identical to the crop path,
+  -- crudely make it different
+  if output_path_full == output_path then
+    output_path_full = output_path_full .. "_full.png"
+  end
+
+  -- Temporarily lower the PNG compression
+  local previous_png_compression = mp.get_property_native("screenshot-png-compression")
+  mp.set_property_native("screenshot-png-compression", 0)
+  -- Take the screenshot
+  mp.commandv("raw", "no-osd", "screenshot-to-file", output_path_full)
+  -- Return the previous value
+  mp.set_property_native("screenshot-png-compression", previous_png_compression)
+
+  if not path_exists(output_path_full) then
+    msg.error("Failed to take screenshot: " .. output_path_full)
+    mp.osd_message("Unable to save screenshot")
+    return
+  end
+
+  local crop_string = string.format("%d:%d:%d:%d", crop.w, crop.h, crop.x, crop.y)
   local cmd = {
     args = {
-    "mpv", fullsize_output_path,
+    "mpv", output_path_full,
     "--vf=crop=" .. crop_string,
     "--frames=1", "--ovc=png",
     "-o", output_path
     }
   }
 
-  utils.subprocess(cmd)
+  local ret = utils.subprocess(cmd)
+
   if not script_options.keep_original then
-    os.remove(fullsize_output_path)
+    os.remove(output_path_full)
   end
-  msg.info("Crop finished:", output_path)
-  mp.osd_message("Took screenshot (" .. size .. ")")
+
+  if ret.error or ret.status ~= 0 then
+    mp.osd_message("Screenshot failed, see console for details")
+    msg.error("Crop failed! Status: " .. tostring(ret.status))
+    msg.error(ret.stdout)
+  else
+    msg.info("Crop finished:", output_path)
+    mp.osd_message("Took screenshot (" .. size .. ")")
+    end
 end
 
 ----------------------

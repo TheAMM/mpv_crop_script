@@ -9,16 +9,9 @@ local SCRIPT_HANDLER = "crop-screenshot"
 
 local script_options = {
     output_format   = "png",
-    output_template = "%f %p %D%U.%x", -- "Some video name 00.01.25.666 200x400 5.png"
-    -- Possible keys:
-    -- %f - Original filename without extension - "A.Video.2017"
-    -- %X - Original extension - "mkv"
-    -- %x - Output extension   - "png"
-    -- %u - Unique - "", "_1", "_2", ...
-    -- %U - Unique - "", " 1", " 2", ...
-    -- %p - Current time - 00.03.50.423
-    -- %P - Current time without decimals - 00.03.50
-    -- %D - Crop size - 200x300, 123x450, full
+    -- For the possible keys, see README.md and main.lua
+    output_template = "${filename} ${#pos:%02h.%02m.%06.3s} ${!full:${crop_w}x${crop_h} ${%unique:%03d}}.png",
+    create_directories = false,
     keep_original   = false,
     disable_keybind = false
 }

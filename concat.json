@@ -8,6 +8,7 @@
 		"src/options.lua",
 		"src/display_state.lua",
 		"src/asscropper.lua",
+		"src/property_expander.lua",
 		"src/main.lua"
 	],
 
