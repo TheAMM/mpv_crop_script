@@ -182,8 +182,9 @@ function ASSCropper:get_hitboxes(crop_box)
   local w, h = math.abs(x2 - x1), math.abs(y2 - y1)
 
   -- Corner and required corner size in videospace pixels
-  local videospace_corner_size = self.corner_size * self.display_state.scale_mult
-  local videospace_required_size = self.corner_required_size * self.display_state.scale_mult
+  local mult = math.min(self.display_state.scale.x, self.display_state.scale.y)
+  local videospace_corner_size = self.corner_size * mult
+  local videospace_required_size = self.corner_required_size * mult
 
   local handles_outside = (math.min(w, h) <= videospace_required_size)
 
