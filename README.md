@@ -3,6 +3,8 @@
 [![](docs/sintel_crop_guides_crosshair.jpg "Cropping Sintel (2010) with mpv_crop_script.lua")](https://youtu.be/Eis0Ipu7yw0)
 [*Click the image or here to see the script in action*](https://youtu.be/Eis0Ipu7yw0)
 
+*(You might also be interested in [`mpv_thumbnail_script.lua`](https://github.com/TheAMM/mpv_thumbnail_script))*
+
 ----
 
 ## What is it?
