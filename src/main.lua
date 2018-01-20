@@ -19,9 +19,14 @@ function script_crop_toggle()
 end
 
 
+local next_tick_time = nil
 function on_tick_listener()
-  if asscropper.active and display_state:recalculate_bounds() then
-    mp.set_osd_ass(display_state.screen.width, display_state.screen.height, asscropper:get_render_ass())
+  local now = mp.get_time()
+  if next_tick_time == nil or now >= next_tick_time then
+    if asscropper.active and display_state:recalculate_bounds() then
+      mp.set_osd_ass(display_state.screen.width, display_state.screen.height, asscropper:get_render_ass())
+    end
+    next_tick_time = now + (1/60)
   end
 end
 
@@ -161,6 +166,7 @@ end
 display_state = DisplayState()
 asscropper = ASSCropper(display_state)
 
+asscropper.tick_callback = on_tick_listener
 mp.register_event("tick", on_tick_listener)
 
 local used_keybind = SCRIPT_KEYBIND

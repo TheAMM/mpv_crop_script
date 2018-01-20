@@ -11,6 +11,12 @@ function ASSCropper.new(display_state)
 
   self.display_state = display_state
 
+  self.tick_callback = nil
+  self.tick_timer = mp.add_periodic_timer(1/60, function()
+    if self.tick_callback then self.tick_callback() end
+  end)
+  self.tick_timer:stop()
+
   self.corner_size = 40
   self.corner_required_size = self.corner_size * 3
 
@@ -53,10 +59,10 @@ function ASSCropper.new(display_state)
     {"ESC", function() self:key_event("ESC") end }
   }
   mp.set_key_bindings(listeners, self.MOUSE_EVENT, "force")
+  self:disable_key_bindings()
 
   return self
 end
-
 
 function ASSCropper:enable_key_bindings()
   mp.enable_key_bindings(self.MOUSE_EVENT)
@@ -118,6 +124,7 @@ function ASSCropper:start_crop(options, on_crop, on_cancel)
   self.display_state:recalculate_bounds(true)
   if self.display_state.video_ready then
     self.active = true
+    self.tick_timer:resume()
 
     self.options = {}
 
@@ -140,6 +147,7 @@ end
 
 function ASSCropper:stop_crop(clear)
   self.active = false
+  self.tick_timer:stop()
 
   self:disable_key_bindings()
   if clear then
