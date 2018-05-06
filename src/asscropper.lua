@@ -7,7 +7,8 @@ setmetatable(ASSCropper, {
 
 function ASSCropper.new(display_state)
   local self = setmetatable({}, ASSCropper)
-  self.MOUSE_EVENT = mp.get_script_name() .. "_asscropper_mouse"
+  self.keybind_group = mp.get_script_name() .. "_asscropper_binds"
+  self.cropdetect_label = mp.get_script_name() .. "_asscropper_cropdetect"
 
   self.display_state = display_state
 
@@ -16,6 +17,8 @@ function ASSCropper.new(display_state)
     if self.tick_callback then self.tick_callback() end
   end)
   self.tick_timer:stop()
+
+  self.text_size = 18
 
   self.corner_size = 40
   self.corner_required_size = self.corner_size * 3
@@ -48,28 +51,33 @@ function ASSCropper.new(display_state)
   self.drag_start = {x=0, y=0}
   self.restrict_ratio = false
 
+  self.detecting_crop = nil
+  self.cropdetect_wait = nil
+  self.cropdetect_timeout = nil
+
   local listeners = {
     {"mouse_move", function()  self:update_mouse_position() end },
     {"mouse_btn0", function(e) self:on_mouse("mouse_btn0", false) end, function(e) self:on_mouse("mouse_btn0", true) end},
     {"shift+mouse_btn0", function(e) self:on_mouse("mouse_btn0", false, true) end, function(e) self:on_mouse("mouse_btn0", true, true) end},
     {"c", function() self:key_event("CROSSHAIR") end },
+    {"d", function() self:key_event("CROP_DETECT") end },
     {"x", function() self:key_event("GUIDES") end },
     {"z", function() self:key_event("INVERT") end },
     {"ENTER", function() self:key_event("ENTER") end },
     {"ESC", function() self:key_event("ESC") end }
   }
-  mp.set_key_bindings(listeners, self.MOUSE_EVENT, "force")
+  mp.set_key_bindings(listeners, self.keybind_group, "force")
   self:disable_key_bindings()
 
   return self
 end
 
 function ASSCropper:enable_key_bindings()
-  mp.enable_key_bindings(self.MOUSE_EVENT)
+  mp.enable_key_bindings(self.keybind_group)
 end
 
 function ASSCropper:disable_key_bindings()
-  mp.disable_key_bindings(self.MOUSE_EVENT)
+  mp.disable_key_bindings(self.keybind_group)
 end
 
 
@@ -108,6 +116,9 @@ function ASSCropper:key_event(name)
       self.callback_on_cancel()
     end
 
+  elseif name == "CROP_DETECT" then
+    self:toggle_crop_detect()
+
   elseif name == "CROSSHAIR" then
     self.options.draw_mouse = not self.options.draw_mouse;
   elseif name == "INVERT" then
@@ -115,6 +126,68 @@ function ASSCropper:key_event(name)
   elseif name == "GUIDES" then
     self.options.guide_type = (self.options.guide_type + 1) % (self.guide_type_count)
     mp.osd_message(self.guide_type_names[self.options.guide_type])
+  end
+end
+
+function ASSCropper:cropdetect_stop()
+  if self.detecting_crop then
+    self.detecting_crop:stop()
+    self.detecting_crop = nil
+    self.cropdetect_wait = nil
+    self.cropdetect_timeout = nil
+
+    local filters = mp.get_property_native("vf")
+    for i, filter in ipairs(filters) do
+      if filter.label == self.cropdetect_label then
+        table.remove(filters, i)
+        mp.set_property_native("vf", filters)
+      end
+    end
+  end
+
+end
+
+function ASSCropper:cropdetect_check()
+  local cropdetect_metadata = mp.get_property_native("vf-metadata/" .. self.cropdetect_label)
+  local get_n = function(s) return tonumber(cropdetect_metadata["lavfi.cropdetect." .. s]) end
+
+  local now = mp.get_time()
+  if not isempty(cropdetect_metadata) and now >= self.cropdetect_wait then
+    self:cropdetect_stop()
+
+    self.current_crop = {
+      {x=get_n("x1"), y=get_n("y1")},
+      {x=get_n("x2")+1, y=get_n("y2")+1},
+    }
+
+    mp.osd_message("Crop detected")
+  elseif now > self.cropdetect_timeout then
+    mp.osd_message("Crop detect timed out")
+    self:cropdetect_stop()
+  end
+end
+
+function ASSCropper:toggle_crop_detect()
+  if self.detecting_crop then
+    self:cropdetect_stop()
+    mp.osd_message("Cancelled crop detect")
+
+  else
+    -- local cropdetect_filter = ('@%s:cropdetect=limit=%f:round=2:reset=0'):format(self.cropdetect_label, 30/255)
+    local cropdetect_filter = ('@%s:cropdetect=limit=%f:round=2:reset=0'):format(self.cropdetect_label, 30/255)
+
+    local ret = mp.commandv('vf', 'add', cropdetect_filter)
+    if not ret then
+      mp.osd_message("Crop detect failed")
+    else
+      self.cropdetect_wait = mp.get_time() + 0.2
+      self.cropdetect_timeout = self.cropdetect_wait + 1.5
+
+      mp.osd_message("Starting automatic crop detect")
+      self.detecting_crop = mp.add_periodic_timer(1/10, function()
+        self:cropdetect_check()
+      end)
+    end
   end
 end
 
@@ -286,7 +359,7 @@ function ASSCropper:on_mouse(button, mouse_down, shift_down)
   mouse_down = mouse_down or false
   shift_down = shift_down or false
 
-  if button == "mouse_btn0" and self.active then
+  if button == "mouse_btn0" and self.active and not self.detecting_crop then
 
     local mouse_pos = {x=self.mouse_video.x, y=self.mouse_video.y}
 
@@ -815,13 +888,13 @@ function ASSCropper:get_render_ass(dim_only)
     ass:new_event()
     ass:pos(self.display_state.screen.width - 5, 5)
     local text_align = 9
-    ass:append( string.format("{\\fs%d\\an%d\\bord2}", 18, text_align) )
+    ass:append( string.format("{\\fs%d\\an%d\\bord2}", self.text_size, text_align) )
 
     local fmt_key = function( key, text ) return string.format("[{\\c&HBEBEBE&}%s{\\c} %s]", key:upper(), text) end
 
     local crosshair_txt = self.options.draw_mouse and "Hide" or "Show";
     lines = {
-      fmt_key("ENTER", "Accept crop") .. " " .. fmt_key("ESC", "Cancel crop"),
+      fmt_key("ENTER", "Accept crop") .. " " .. fmt_key("ESC", "Cancel crop") .. " " .. fmt_key("D", "Autodetect crop"),
       fmt_key("C", crosshair_txt .. " crosshair") .. " " .. fmt_key("X", "Cycle guides") .. " " .. fmt_key("Z", "Invert color"),
       fmt_key("SHIFT-Drag", "Constrain ratio")
     }
