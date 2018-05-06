@@ -20,6 +20,9 @@ function ASSCropper.new(display_state)
 
   self.text_size = 18
 
+  self.overlay_transparency = 160
+  self.overlay_lightness = 0
+
   self.corner_size = 40
   self.corner_required_size = self.corner_size * 3
 
@@ -729,7 +732,7 @@ function ASSCropper:get_render_ass(dim_only)
     ass:append(string.format("{\\iclip(%d,%d,%d,%d)}", s_crop[1], s_crop[2], s_crop[3], s_crop[4]))
 
     -- Dim overlay
-    local format_dim = string.format("{\\bord0\\1a&H%02X&\\1c&H%02X%02X%02X&}", 160, 0, 0, 0)
+    local format_dim = string.format("{\\bord0\\1a&H%02X&\\1c&H%02X%02X%02X&}", self.overlay_transparency, self.overlay_lightness, self.overlay_lightness, self.overlay_lightness)
     ass:pos(0,0)
     ass:draw_start()
     ass:append(format_dim)

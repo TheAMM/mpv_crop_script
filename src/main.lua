@@ -11,7 +11,12 @@ function script_crop_toggle()
       mp.set_osd_ass(0, 0, "")
     end
 
-    asscropper:start_crop(nil, on_crop, on_cancel)
+    local crop_options = {
+      guide_type = ({none=0, grid=1, center=2})[option_values.guide_type],
+      draw_mouse = option_values.draw_mouse,
+      color_invert = option_values.color_invert
+    }
+    asscropper:start_crop(crop_options, on_crop, on_cancel)
     if not asscropper.active then
       mp.osd_message("No video to crop!", 2)
     end
@@ -54,29 +59,29 @@ function expand_output_path(cropbox)
 
       unique = 0,
 
-      ext = script_options.output_format
+      ext = option_values.output_format
     }
     local propex = PropertyExpander(MPVPropertySource(properties))
 
 
-    local test_path = propex:expand(script_options.output_template)
+    local test_path = propex:expand(option_values.output_template)
     -- If the paths do not change when incrementing the unique, it's not used.
     -- Return early and avoid the endless loop
     properties.unique = 1
-    if propex:expand(script_options.output_template) == test_path then
+    if propex:expand(option_values.output_template) == test_path then
       properties.full = true
-      local output_path_full = propex:expand(script_options.output_template)
+      local output_path_full = propex:expand(option_values.output_template)
       return test_path, output_path_full
 
     else
       -- Figure out an unique filename
       while true do
-        test_path = propex:expand(script_options.output_template)
+        test_path = propex:expand(option_values.output_template)
 
         -- Check if filename is free
         if not path_exists(test_path) then
           properties.full = true
-          local output_path_full = propex:expand(script_options.output_template)
+          local output_path_full = propex:expand(option_values.output_template)
           return test_path, output_path_full
         else
           -- Try the next one
@@ -99,7 +104,7 @@ function screenshot(crop)
   local output_path, output_path_full = expand_output_path(crop)
 
   -- Optionally create directories
-  if script_options.create_directories then
+  if option_values.create_directories then
     local paths = {}
     paths[1] = split_path(output_path)
     paths[2] = split_path(output_path_full)
@@ -145,7 +150,7 @@ function screenshot(crop)
 
   local ret = utils.subprocess(cmd)
 
-  if not script_options.keep_original then
+  if not option_values.keep_original then
     os.remove(output_path_full)
   end
 
@@ -165,13 +170,15 @@ end
 
 display_state = DisplayState()
 asscropper = ASSCropper(display_state)
+asscropper.overlay_transparency = option_values.overlay_transparency
+asscropper.overlay_lightness = option_values.overlay_lightness
 
 asscropper.tick_callback = on_tick_listener
 mp.register_event("tick", on_tick_listener)
 
 local used_keybind = SCRIPT_KEYBIND
 -- Disable the default keybind if asked to
-if script_options.disable_keybind then
+if option_values.disable_keybind then
   used_keybind = nil
 end
 mp.add_key_binding(used_keybind, SCRIPT_HANDLER, script_crop_toggle)

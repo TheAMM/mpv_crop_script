@@ -5,6 +5,7 @@
 		"src/license_blurb.lua",
 		"<version>",
 		"src/helpers.lua",
+		"src/option_parser.lua",
 		"src/options.lua",
 		"src/display_state.lua",
 		"src/asscropper.lua",
