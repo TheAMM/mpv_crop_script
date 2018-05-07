@@ -149,6 +149,7 @@ function screenshot(crop)
     }
   }
 
+  msg.info("Cropping: ", crop_string, output_path)
   local ret = utils.subprocess(cmd)
 
   if not option_values.keep_original then
@@ -157,10 +158,11 @@ function screenshot(crop)
 
   if ret.error or ret.status ~= 0 then
     mp.osd_message("Screenshot failed, see console for details")
-    msg.error("Crop failed! Status: " .. tostring(ret.status))
+    msg.error("Crop failed! mpv exit code: " .. tostring(ret.status))
+    msg.error("mpv stdout:")
     msg.error(ret.stdout)
   else
-    msg.info("Crop finished:", output_path)
+    msg.info("Crop finished!")
     mp.osd_message("Took screenshot (" .. size .. ")")
     end
 end
