@@ -33,6 +33,8 @@ script_options:add_options({
     "Crop guide type. One of: none, grid, center"},
   {"color_invert", false,
     "Use black lines instead of white for the crop frame and crosshair"},
+  {"auto_invert", false,
+    "Try to check if video is light or dark upon opening crop tool, and invert the colors if necessary"},
 
   {nil, nil, "Misc options #", true},
   {"disable_keybind", false,

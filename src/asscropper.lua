@@ -7,8 +7,10 @@ setmetatable(ASSCropper, {
 
 function ASSCropper.new(display_state)
   local self = setmetatable({}, ASSCropper)
-  self.keybind_group = mp.get_script_name() .. "_asscropper_binds"
-  self.cropdetect_label = mp.get_script_name() .. "_asscropper_cropdetect"
+  local script_name = mp.get_script_name()
+  self.keybind_group = script_name .. "_asscropper_binds"
+  self.cropdetect_label = script_name .. "_asscropper_cropdetect"
+  self.blackframe_label = script_name .. "_asscropper_blackframe"
 
   self.display_state = display_state
 
@@ -39,6 +41,7 @@ function ASSCropper.new(display_state)
     draw_mouse = false,
     draw_help = true,
     color_invert = false,
+    auto_invert = false,
   }
   self.options = default_options
 
@@ -57,6 +60,10 @@ function ASSCropper.new(display_state)
   self.detecting_crop = nil
   self.cropdetect_wait = nil
   self.cropdetect_timeout = nil
+
+  self.detecting_blackframe = nil
+  self.blackframe_wait = nil
+  self.blackframe_timeout = nil
 
   local listeners = {
     {"mouse_move", function()  self:update_mouse_position() end },
@@ -132,6 +139,55 @@ function ASSCropper:key_event(name)
   end
 end
 
+function ASSCropper:blackframe_stop()
+  if self.detecting_blackframe then
+    self.detecting_blackframe:stop()
+    self.detecting_blackframe = nil
+
+    local filters = mp.get_property_native("vf")
+    for i, filter in ipairs(filters) do
+      if filter.label == self.blackframe_label then
+        table.remove(filters, i)
+      end
+    end
+    mp.set_property_native("vf", filters)
+  end
+
+end
+
+function ASSCropper:blackframe_check()
+  local blackframe_metadata = mp.get_property_native("vf-metadata/" .. self.blackframe_label)
+  local black_percentage = tonumber(blackframe_metadata["lavfi.blackframe.pblack"])
+
+  local now = mp.get_time()
+  if black_percentage ~= nil and now >= self.blackframe_wait then
+    self:blackframe_stop()
+
+    self.options.color_invert = black_percentage < 50
+  elseif now > self.blackframe_timeout then
+    -- Couldn't get blackframe metadata in time!
+    self:blackframe_stop()
+  end
+end
+
+function ASSCropper:blackframe_start()
+  self:blackframe_stop()
+  if not self.detecting_blackframe then
+
+    local blackframe_filter = ('@%s:blackframe=amount=%d:threshold=%d'):format(self.blackframe_label, 0, 128)
+
+    local ret = mp.commandv('vf', 'add', blackframe_filter)
+    if ret then
+      self.blackframe_wait =  mp.get_time() + 0.15
+      self.blackframe_timeout =  self.blackframe_wait + 1
+
+      self.detecting_blackframe = mp.add_periodic_timer(1/10, function()
+        self:blackframe_check()
+      end)
+    end
+  end
+end
+
 function ASSCropper:cropdetect_stop()
   if self.detecting_crop then
     self.detecting_crop:stop()
@@ -143,9 +199,9 @@ function ASSCropper:cropdetect_stop()
     for i, filter in ipairs(filters) do
       if filter.label == self.cropdetect_label then
         table.remove(filters, i)
-        mp.set_property_native("vf", filters)
       end
     end
+    mp.set_property_native("vf", filters)
   end
 
 end
@@ -218,12 +274,19 @@ function ASSCropper:start_crop(options, on_crop, on_cancel)
 
     self:enable_key_bindings()
     self:update_mouse_position()
+
+    if self.options.auto_invert then
+      self:blackframe_start()
+    end
   end
 end
 
 function ASSCropper:stop_crop(clear)
   self.active = false
   self.tick_timer:stop()
+
+  self:cropdetect_stop()
+  self:blackframe_stop()
 
   self:disable_key_bindings()
   if clear then

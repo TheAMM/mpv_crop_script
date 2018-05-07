@@ -14,7 +14,8 @@ function script_crop_toggle()
     local crop_options = {
       guide_type = ({none=0, grid=1, center=2})[option_values.guide_type],
       draw_mouse = option_values.draw_mouse,
-      color_invert = option_values.color_invert
+      color_invert = option_values.color_invert,
+      auto_invert = option_values.auto_invert
     }
     asscropper:start_crop(crop_options, on_crop, on_cancel)
     if not asscropper.active then
