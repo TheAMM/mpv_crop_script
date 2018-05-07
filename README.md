@@ -69,6 +69,8 @@ With `disable_keybind=yes`, you can add your own keybind to [`input.conf`](https
 shift+alt+s script-binding crop-screenshot
 ```
 
+**NEW:** You may also run mpv with `mpv --idle --script-opts mpv_crop_script-example-config=example.conf` to dump an example config with the default values to `example.conf`.
+
 ## Property expansion
 
 This script's `output_template` mimics mpv's own [property expansion](https://mpv.io/manual/master/#property-expansion), but is not a 1:1 match. With it you can flexibly specify filenames and use lightweight logic (fallback expressions).  
