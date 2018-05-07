@@ -56,6 +56,21 @@ function OptionParser.new(identifier)
       return option ~= nil and option.default or nil
     end
   })
+
+  -- Hacky way to run after the script is initialized and options (hopefully) added
+  mp.add_timeout(0, function()
+    -- Handle a '--script-opts identifier-example-config=example.conf' to save an example config to a file
+    local example_dump_filename = mp.get_opt(self.identifier .. "-example-config")
+    if example_dump_filename then
+      self:save_example_options(example_dump_filename)
+
+      if mp.get_property_native("options/idle") then
+        msg.info("Exiting.")
+        mp.commandv("quit")
+      end
+    end
+  end)
+
   return self
 end
 
@@ -234,19 +249,39 @@ function OptionParser:save_options()
 
 end
 
-function OptionParser:explain_options()
+function OptionParser:get_default_config_lines()
+  local example_config_lines = {}
+
   for option_index, option in ipairs(self.options_list) do
     if option.pad_before then
-      print('')
+      table.insert(example_config_lines, '')
     end
 
     if option.description then
       for description_line in option.description:gmatch('[^\r\n]+') do
-        print('# ' .. description_line)
+        table.insert(example_config_lines, ('# ' .. description_line))
       end
     end
     if option.key then
-      print( ('%s=%s'):format(option.key, self:value_to_string(option.value)) )
+      table.insert(example_config_lines, ('%s=%s'):format(option.key, self:value_to_string(option.default)) )
     end
+  end
+  return example_config_lines
+end
+
+function OptionParser:explain_options()
+  local example_config_lines = self:get_default_config_lines()
+  msg.info(table.concat(example_config_lines, '\n'))
+end
+
+function OptionParser:save_example_options(filename)
+  local file = io.open(filename, "w")
+  if not file then
+    msg.error("Unable to open file '" .. filename .. "' for writing")
+  else
+    local example_config_lines = self:get_default_config_lines()
+    file:write(table.concat(example_config_lines, '\n'))
+    file:close()
+    msg.info("Wrote example config to file '" .. filename .. "'")
   end
 end
