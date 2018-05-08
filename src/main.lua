@@ -41,11 +41,13 @@ function expand_output_path(cropbox)
     local filename = mp.get_property_native("filename")
     local playback_time = mp.get_property_native("playback-time")
 
+    local filename_without_ext, extension = filename:match("^(.+)%.(.-)$")
+
     local properties = {
       path = mp.get_property_native("path"), -- Original path
 
-      filename = filename:match("^(.+)%..+$"), -- Filename without extension
-      file_ext = filename:gsub("^(.+)%..+$", ""), -- Original extension with leading dot
+      filename = filename_without_ext, -- Filename without extension
+      file_ext = extension or "",            -- Original extension without leading dot
 
       pos = mp.get_property_native("playback-time"),
 
@@ -60,7 +62,7 @@ function expand_output_path(cropbox)
 
       unique = 0,
 
-      ext = option_values.output_format
+      ext = option_values.output_extension
     }
     local propex = PropertyExpander(MPVPropertySource(properties))
 
@@ -159,7 +161,8 @@ function screenshot(crop)
     args = {
     "mpv", input_path,
     "--vf=crop=" .. crop_string,
-    "--frames=1", "--ovc=png",
+    "--frames=1",
+    "--ovc=" .. option_values.output_format,
     "-o", output_path
     }
   }
@@ -185,6 +188,34 @@ end
 ----------------------
 -- Instances, binds --
 ----------------------
+
+-- Sanity-check output_template
+if option_values.warn_about_template and not option_values.output_template:find('%${ext}') then
+  msg.warn("Output template missing ${ext}! If this is desired, set warn_about_template=yes in config!")
+end
+
+-- Short list of extensions for encoders
+local ENCODER_EXTENSION_MAP = {
+  png      = "png",
+  mjpeg    = "jpg",
+  targa    = "tga",
+  tiff     = "tiff",
+  gif      = "gif", -- please don't
+  bmp      = "bmp",
+  jpegls   = "jpg",
+  ljpeg    = "jpg",
+  jpeg2000 = "jp2",
+}
+-- Pick an extension if one was not provided
+if option_values.output_extension == "" then
+  local extension = ENCODER_EXTENSION_MAP[option_values.output_format]
+  if not extension then
+    msg.error("Unrecognized output format '" .. option_values.output_format .. "', unable to pick an extension! Bailing!")
+    mp.osd_message("mpv_crop_script was unable to choose an extension, check your config", 3)
+  end
+  option_values.output_extension = extension
+end
+
 
 display_state = DisplayState()
 asscropper = ASSCropper(display_state)
