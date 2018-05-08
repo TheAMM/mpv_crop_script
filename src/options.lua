@@ -19,6 +19,8 @@ script_options:add_options({
     "Format (encoder) to save final crops in"},
   {"create_directories", false,
     "Whether to create the directories in the final output path (defined by output_template)"},
+  {"skip_screenshot_for_images", true,
+    "If the current file is an image, skip taking a temporary screenshot and crop the image directly"},
   {"keep_original", false,
     "Keep the full-sized temporary screenshot as well"},
 

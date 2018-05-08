@@ -71,8 +71,8 @@ function expand_output_path(cropbox)
     properties.unique = 1
     if propex:expand(option_values.output_template) == test_path then
       properties.full = true
-      local output_path_full = propex:expand(option_values.output_template)
-      return test_path, output_path_full
+      local temporary_screenshot_path = propex:expand(option_values.output_template)
+      return test_path, temporary_screenshot_path
 
     else
       -- Figure out an unique filename
@@ -82,8 +82,8 @@ function expand_output_path(cropbox)
         -- Check if filename is free
         if not path_exists(test_path) then
           properties.full = true
-          local output_path_full = propex:expand(option_values.output_template)
-          return test_path, output_path_full
+          local temporary_screenshot_path = propex:expand(option_values.output_template)
+          return test_path, temporary_screenshot_path
         else
           -- Try the next one
           properties.unique = properties.unique + 1
@@ -102,13 +102,13 @@ function screenshot(crop)
     return
   end
 
-  local output_path, output_path_full = expand_output_path(crop)
+  local output_path, temporary_screenshot_path = expand_output_path(crop)
 
   -- Optionally create directories
   if option_values.create_directories then
     local paths = {}
     paths[1] = split_path(output_path)
-    paths[2] = split_path(output_path_full)
+    paths[2] = split_path(temporary_screenshot_path)
 
     -- Check if we can read the paths
     for i, path in ipairs(paths) do
@@ -119,30 +119,45 @@ function screenshot(crop)
     end
   end
 
-  -- In case the full-size output path is identical to the crop path,
-  -- crudely make it different
-  if output_path_full == output_path then
-    output_path_full = output_path_full .. "_full.png"
-  end
+  local playback_time = mp.get_property_native("playback-time")
+  local duration = mp.get_property_native("duration")
 
-  -- Temporarily lower the PNG compression
-  local previous_png_compression = mp.get_property_native("screenshot-png-compression")
-  mp.set_property_native("screenshot-png-compression", 0)
-  -- Take the screenshot
-  mp.commandv("raw", "no-osd", "screenshot-to-file", output_path_full)
-  -- Return the previous value
-  mp.set_property_native("screenshot-png-compression", previous_png_compression)
+  local input_path = nil
 
-  if not path_exists(output_path_full) then
-    msg.error("Failed to take screenshot: " .. output_path_full)
-    mp.osd_message("Unable to save screenshot")
-    return
+  if option_values.skip_screenshot_for_images and duration == 0 and playback_time == 0 then
+    -- Seems to be an image (or at least static file)
+    input_path = mp.get_property_native("path")
+    temporary_screenshot_path = nil
+  else
+    -- Not an image, take a temporary screenshot
+
+    -- In case the full-size output path is identical to the crop path,
+    -- crudely make it different
+    if temporary_screenshot_path == output_path then
+      temporary_screenshot_path = temporary_screenshot_path .. "_full.png"
+    end
+
+    -- Temporarily lower the PNG compression
+    local previous_png_compression = mp.get_property_native("screenshot-png-compression")
+    mp.set_property_native("screenshot-png-compression", 0)
+    -- Take the screenshot
+    mp.commandv("raw", "no-osd", "screenshot-to-file", temporary_screenshot_path)
+    -- Return the previous value
+    mp.set_property_native("screenshot-png-compression", previous_png_compression)
+
+    if not path_exists(temporary_screenshot_path) then
+      msg.error("Failed to take screenshot: " .. temporary_screenshot_path)
+      mp.osd_message("Unable to save screenshot")
+      return
+    end
+
+    input_path = temporary_screenshot_path
   end
 
   local crop_string = string.format("%d:%d:%d:%d", crop.w, crop.h, crop.x, crop.y)
   local cmd = {
     args = {
-    "mpv", output_path_full,
+    "mpv", input_path,
     "--vf=crop=" .. crop_string,
     "--frames=1", "--ovc=png",
     "-o", output_path
@@ -152,8 +167,8 @@ function screenshot(crop)
   msg.info("Cropping: ", crop_string, output_path)
   local ret = utils.subprocess(cmd)
 
-  if not option_values.keep_original then
-    os.remove(output_path_full)
+  if not option_values.keep_original and temporary_screenshot_path then
+    os.remove(temporary_screenshot_path)
   end
 
   if ret.error or ret.status ~= 0 then
