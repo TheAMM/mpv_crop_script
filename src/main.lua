@@ -40,6 +40,7 @@ end
 function expand_output_path(cropbox)
     local filename = mp.get_property_native("filename")
     local playback_time = mp.get_property_native("playback-time")
+    local duration = mp.get_property_native("duration")
 
     local filename_without_ext, extension = filename:match("^(.+)%.(.-)$")
 
@@ -52,6 +53,7 @@ function expand_output_path(cropbox)
       pos = mp.get_property_native("playback-time"),
 
       full = false,
+      is_image = (duration == 0 and playback_time == 0),
 
       crop_w = cropbox.w,
       crop_h = cropbox.h,

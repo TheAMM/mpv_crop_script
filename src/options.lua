@@ -28,6 +28,7 @@ script_options:add_options({
   crop_x2     - right
   crop_y2     - bottom
   full        - boolean denoting a full (temporary) screenshot instead of crop
+  is_image    - boolean denoting the source file is likely an image (zero duration and position)
   unique      - counter that will increase per each existing filename, until a unique name is found]]},
 
   {"output_format", "png",

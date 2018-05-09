@@ -134,7 +134,8 @@ Tricky examples of the property expansion:
 | `path` | `string` | full source path - may be a network path, so beware |
 | `pos` | `number` | Current playback position (float), format it with `${#pos:TIMEFORMAT}`! |
 | `unique` | `number` | A sequence number. The script will choose the first available filename, starting with `unique` as 1 and counting up. Use with `${%...}` |
-| `full` | `boolean` | Flag to specify which filename is being expanded - the cropped (`false`) output or the intermediary full-size image (`true`). Use with `${?...}` and `${-...}` |
+| `full` | `boolean` | Flag to specify which filename is being expanded - the cropped (`false`) output or the intermediary full-size image (`true`). Use with `${?...}` and `${!...}` |
+| `is_image` | `boolean` | Flag to tell if the current file is likely an image. Use with `${?...}` and `${!...}` |
 | `crop_w` | `number` | Width of the crop |
 | `crop_h` | `number` | Height of the crop |
 | `crop_x` | `number` | Left edge of the crop |
