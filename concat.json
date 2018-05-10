@@ -4,12 +4,12 @@
 	"files" : [
 		"src/license_blurb.lua",
 		"<version>",
-		"src/helpers.lua",
-		"src/option_parser.lua",
+		"libs/helpers.lua",
+		"libs/option_parser.lua",
 		"src/options.lua",
-		"src/display_state.lua",
-		"src/asscropper.lua",
-		"src/property_expander.lua",
+		"libs/display_state.lua",
+		"libs/asscropper.lua",
+		"libs/property_expander.lua",
 		"src/main.lua"
 	],
 

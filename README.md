@@ -130,7 +130,7 @@ Tricky examples of the property expansion:
 | Name | Type | Notes |
 | ---- | ---- | ----- |
 | `filename` | `string` | Original filename with the extension stripped off |
-| `file_ext` | `string` | Original extension, dot included |
+| `file_ext` | `string` | Original extension, without leading dot |
 | `path` | `string` | full source path - may be a network path, so beware |
 | `pos` | `number` | Current playback position (float), format it with `${#pos:TIMEFORMAT}`! |
 | `unique` | `number` | A sequence number. The script will choose the first available filename, starting with `unique` as 1 and counting up. Use with `${%...}` |
@@ -145,6 +145,8 @@ Tricky examples of the property expansion:
 
 
 ## Development
+
+This project uses git submodules. After cloning (or fetching updates), run `git submodule update --init` to update the `libs` submodule, which contains parts most of my scripts share and use.
 
 Included in the repository is the `concat_files.py` tool I use for automatically concatenating files upon their change, and also mapping changes to the output file back to the source files. It's really handy on stack traces when mpv gives you a line and column on the output file - no need to hunt down the right place in the source files!
 

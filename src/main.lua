@@ -42,13 +42,13 @@ function expand_output_path(cropbox)
     local playback_time = mp.get_property_native("playback-time")
     local duration = mp.get_property_native("duration")
 
-    local filename_without_ext, extension = filename:match("^(.+)%.(.-)$")
+    local filename_without_ext, extension = split_extension(filename)
 
     local properties = {
       path = mp.get_property_native("path"), -- Original path
 
       filename = filename_without_ext, -- Filename without extension
-      file_ext = extension or "",            -- Original extension without leading dot
+      file_ext = extension,            -- Original extension without leading dot (or empty string)
 
       pos = mp.get_property_native("playback-time"),
 
