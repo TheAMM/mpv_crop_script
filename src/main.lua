@@ -42,13 +42,13 @@ function expand_output_path(cropbox)
     local playback_time = mp.get_property_native("playback-time")
     local duration = mp.get_property_native("duration")
 
-    local filename_without_ext, extension = split_extension(filename)
+    local filename_without_ext, extension = filename:match("^(.+)%.(.-)$")
 
     local properties = {
       path = mp.get_property_native("path"), -- Original path
 
-      filename = filename_without_ext, -- Filename without extension
-      file_ext = extension,            -- Original extension without leading dot (or empty string)
+      filename = filename_without_ext or filename, -- Filename without extension (or filename if no dots
+      file_ext = extension or "",                  -- Original extension without leading dot (or empty string)
 
       pos = mp.get_property_native("playback-time"),
 
@@ -111,8 +111,8 @@ function screenshot(crop)
   -- Optionally create directories
   if option_values.create_directories then
     local paths = {}
-    paths[1] = split_path(output_path)
-    paths[2] = split_path(temporary_screenshot_path)
+    paths[1] = path_utils.dirname(output_path)
+    paths[2] = path_utils.dirname(temporary_screenshot_path)
 
     -- Check if we can read the paths
     for i, path in ipairs(paths) do
@@ -162,6 +162,7 @@ function screenshot(crop)
   local cmd = {
     args = {
     "mpv", input_path,
+    "--no-config",
     "--vf=crop=" .. crop_string,
     "--frames=1",
     "--ovc=" .. option_values.output_format,

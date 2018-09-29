@@ -13,7 +13,7 @@ local option_values = script_options.values
 script_options:add_options({
   {nil, nil, "mpv_crop_script.lua options and default values"},
   {nil, nil, "Output options #", true},
-  {"output_template", "${filename} ${#pos:%02h.%02m.%06.3s} ${!full:${crop_w}x${crop_h} ${%unique:%03d}}.${ext}",
+  {"output_template", "${filename}${!is_image: ${#pos:%02h.%02m.%06.3s}}${!full: ${crop_w}x${crop_h}} ${%unique:%03d}.${ext}",
     "Filename output template. See README.md for property expansion documentation."},
   {nil, nil, [[Script-provided properties:
   filename    - filename without extension
