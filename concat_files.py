@@ -247,11 +247,11 @@ class Concatter(object):
 
 
 def _create_version_metafile(config, config_dirname):
-    repo_dir = os.path.join(config_dirname, config.get('repo_dir', ''))
+    repo_dir = os.path.join(config_dirname, config.get('repo_dir', '.'))
     try:
         git_branch = subprocess.check_output(['git', '-C', repo_dir, 'symbolic-ref', '--short', '-q', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
         git_commit = subprocess.check_output(['git', '-C', repo_dir, 'rev-parse', '--short', '-q', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
-    except:
+    except Exception as e:
         git_branch = None
         git_commit = None
 
