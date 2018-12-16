@@ -1,7 +1,10 @@
 local SCRIPT_NAME = "mpv_crop_script"
 
-local SCRIPT_KEYBIND = "c"
-local SCRIPT_HANDLER = "crop-screenshot"
+local SCRIPT_CROP_KEYBIND = "c"
+local SCRIPT_MASK_KEYBIND = "C"
+
+local SCRIPT_CROP = "crop-screenshot"
+local SCRIPT_MASK = "mask-screenshot"
 
 --------------------
 -- Script options --

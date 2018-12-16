@@ -1,10 +1,14 @@
+local last_mask = nil
+
 function script_crop_toggle()
-  if asscropper.active then
+  if assmasker.active then
+    return
+  elseif asscropper.active then
     asscropper:stop_crop(true)
   else
     local on_crop = function(crop)
       mp.set_osd_ass(0, 0, "")
-      screenshot(crop)
+      screenshot_crop_or_mask(crop, false)
     end
     local on_cancel = function()
       mp.osd_message("Crop canceled")
@@ -25,12 +29,42 @@ function script_crop_toggle()
 end
 
 
+function script_mask_toggle()
+  if asscropper.active then
+    return
+  elseif assmasker.active then
+    mp.set_osd_ass(0, 0, "")
+    assmasker:stop_masking()
+  else
+    local on_mask = function(mask)
+      last_mask = mask
+      mp.set_osd_ass(0, 0, "")
+      if mask then
+        screenshot_crop_or_mask(mask, true)
+      end
+    end
+    local on_cancel = function()
+      last_mask = nil
+      mp.osd_message("Mask canceled")
+      mp.set_osd_ass(0, 0, "")
+    end
+
+    assmasker:start_masking(on_mask, on_cancel, last_mask)
+    if not assmasker.active then
+      mp.osd_message("No video to mask!", 2)
+    end
+  end
+end
+
+
 local next_tick_time = nil
 function on_tick_listener()
   local now = mp.get_time()
   if next_tick_time == nil or now >= next_tick_time then
     if asscropper.active and display_state:recalculate_bounds() then
       mp.set_osd_ass(display_state.screen.width, display_state.screen.height, asscropper:get_render_ass())
+    elseif assmasker.active and display_state:recalculate_bounds() then
+      mp.set_osd_ass(display_state.screen.width, display_state.screen.height, assmasker:get_render_ass())
     end
     next_tick_time = now + (1/60)
   end
@@ -53,7 +87,7 @@ function expand_output_path(cropbox)
       pos = mp.get_property_native("playback-time"),
 
       full = false,
-      is_image = (duration == 0 and playback_time == 0),
+      is_image = (duration <= 1 and playback_time == 0),
 
       crop_w = cropbox.w,
       crop_h = cropbox.h,
@@ -97,16 +131,39 @@ function expand_output_path(cropbox)
 end
 
 
-function screenshot(crop)
-  local size = round_dec(crop.w) .. "x" .. round_dec(crop.h)
+function screenshot_crop_or_mask(crop_or_mask, is_mask)
+  local cropbox = nil
 
-  -- Bail on bad crop sizes
-  if not (crop.w > 0 and crop.h > 0) then
+  if not is_mask then
+    cropbox = crop_or_mask
+  else
+    local constrain = function(min, v, max) return math.max(min, math.min(max, math.floor(v))) end
+
+    -- Mask has no areas differing from canvas
+    if not crop_or_mask.min_x then
+      mp.osd_message("Bad mask (no masked areas!)")
+      return
+    end
+
+    cropbox = {
+      x  = constrain(0, crop_or_mask.min_x_blur, display_state.video.width),
+      y  = constrain(0, crop_or_mask.min_y_blur, display_state.video.height),
+      x2 = constrain(0, crop_or_mask.max_x_blur, display_state.video.width),
+      y2 = constrain(0, crop_or_mask.max_y_blur, display_state.video.height)
+    }
+    cropbox.w = cropbox.x2 - cropbox.x
+    cropbox.h = cropbox.y2 - cropbox.y
+  end
+
+  local size = round_dec(cropbox.w) .. "x" .. round_dec(cropbox.h)
+
+  -- Bail on bad crops/masks. Simple check, but better than none
+  if not (cropbox.w > 0 and cropbox.h > 0) then
     mp.osd_message("Bad crop (" .. size .. ")!")
     return
   end
 
-  local output_path, temporary_screenshot_path = expand_output_path(crop)
+  local output_path, temporary_screenshot_path = expand_output_path(cropbox)
 
   -- Optionally create directories
   if option_values.create_directories then
@@ -128,7 +185,7 @@ function screenshot(crop)
 
   local input_path = nil
 
-  if option_values.skip_screenshot_for_images and duration == 0 and playback_time == 0 then
+  if option_values.skip_screenshot_for_images and duration <= 1 and playback_time == 0 then
     -- Seems to be an image (or at least static file)
     input_path = mp.get_property_native("path")
     temporary_screenshot_path = nil
@@ -158,20 +215,41 @@ function screenshot(crop)
     input_path = temporary_screenshot_path
   end
 
-  local crop_string = string.format("%d:%d:%d:%d", crop.w, crop.h, crop.x, crop.y)
+  local mask_path = ("%s_mask.png"):format(
+    temporary_screenshot_path or path_utils.expanduser(('~~temp/mpv_crop_script_%d'):format(os.time()))
+  )
+
+  if is_mask then
+    local video_params = mp.get_property_native('video-params')
+    if crop_or_mask.inverted then
+      cropbox = {x=0, y=0, w=video_params.w, h=video_params.h}
+    end
+    crop_or_mask:render_to_file(video_params.w, video_params.h, mask_path)
+  end
+
   local cmd = {
     args = {
     "mpv", input_path,
     "--no-config",
-    "--vf=crop=" .. crop_string,
+    ("--vf=crop=%d:%d:%d:%d"):format(cropbox.w, cropbox.h, cropbox.x, cropbox.y),
     "--frames=1",
     "--ovc=" .. option_values.output_format,
     "-o", output_path
     }
   }
 
-  msg.info("Cropping: ", crop_string, output_path)
+  if is_mask then
+    cmd.args[#cmd.args+1] = ("--lavfi-complex=movie='%s':loop=0 [a]; [vid1][a] alphamerge, format=rgba [vo]"):format(
+      mask_path:gsub('\\', '\\\\'):gsub(':', '\\:')
+    )
+  end
+
+  msg.debug("Processing screenshot: ", utils.to_string(cmd.args))
   local ret = utils.subprocess(cmd)
+
+  if is_mask then
+    os.remove(mask_path)
+  end
 
   if not option_values.keep_original and temporary_screenshot_path then
     os.remove(temporary_screenshot_path)
@@ -184,9 +262,10 @@ function screenshot(crop)
     msg.error(ret.stdout)
   else
     msg.info("Crop finished!")
-    mp.osd_message("Took screenshot (" .. size .. ")")
+    mp.osd_message("Screenshot taken:\n" .. path_utils.basename(output_path))
     end
 end
+
 
 ----------------------
 -- Instances, binds --
@@ -225,12 +304,20 @@ asscropper = ASSCropper(display_state)
 asscropper.overlay_transparency = option_values.overlay_transparency
 asscropper.overlay_lightness = option_values.overlay_lightness
 
+assmasker = ASSMasker(display_state)
+
+assmasker.tick_callback  = on_tick_listener
 asscropper.tick_callback = on_tick_listener
 mp.register_event("tick", on_tick_listener)
 
-local used_keybind = SCRIPT_KEYBIND
+local used_crop_bind = SCRIPT_CROP_KEYBIND
+local used_mask_bind = SCRIPT_MASK_KEYBIND
+
 -- Disable the default keybind if asked to
 if option_values.disable_keybind then
-  used_keybind = nil
+  used_crop_bind = nil
+  used_mask_bind = nil
 end
-mp.add_key_binding(used_keybind, SCRIPT_HANDLER, script_crop_toggle)
+
+mp.add_key_binding(used_crop_bind, SCRIPT_CROP, script_crop_toggle)
+mp.add_key_binding(used_mask_bind, SCRIPT_MASK, script_mask_toggle)

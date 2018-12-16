@@ -9,6 +9,7 @@
 		"src/options.lua",
 		"libs/display_state.lua",
 		"libs/asscropper.lua",
+		"libs/assmasker.lua",
 		"libs/property_expander.lua",
 		"src/main.lua"
 	],
