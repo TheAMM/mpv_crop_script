@@ -74,7 +74,7 @@ end
 function expand_output_path(cropbox)
     local filename = mp.get_property_native("filename")
     local playback_time = mp.get_property_native("playback-time")
-    local duration = mp.get_property_native("duration")
+    local estimated_frame_count = mp.get_property_native("estimated-frame-count")
 
     local filename_without_ext, extension = filename:match("^(.+)%.(.-)$")
 
@@ -87,7 +87,7 @@ function expand_output_path(cropbox)
       pos = mp.get_property_native("playback-time"),
 
       full = false,
-      is_image = (duration <= 1 and playback_time == 0),
+      is_image = (estimated_frame_count <= 1 and playback_time == 0),
 
       crop_w = cropbox.w,
       crop_h = cropbox.h,
@@ -181,11 +181,11 @@ function screenshot_crop_or_mask(crop_or_mask, is_mask)
   end
 
   local playback_time = mp.get_property_native("playback-time")
-  local duration = mp.get_property_native("duration")
+  local estimated_frame_count = mp.get_property_native("estimated-frame-count")
 
   local input_path = nil
 
-  if option_values.skip_screenshot_for_images and duration <= 1 and playback_time == 0 then
+  if option_values.skip_screenshot_for_images and estimated_frame_count <= 1 and playback_time == 0 then
     -- Seems to be an image (or at least static file)
     input_path = mp.get_property_native("path")
     temporary_screenshot_path = nil
